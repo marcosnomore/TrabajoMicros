@@ -47,6 +47,8 @@
 /* Private variables ---------------------------------------------------------*/
 ADC_HandleTypeDef hadc1;
 
+TIM_HandleTypeDef htim2;
+
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
 
@@ -56,6 +58,7 @@ ADC_HandleTypeDef hadc1;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_ADC1_Init(void);
+static void MX_TIM2_Init(void);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
@@ -70,7 +73,7 @@ static void MX_ADC1_Init(void);
  
  
 void maquina_estados (uint16_t GPIO_Pin);
- 
+
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
 		HAL_NVIC_DisableIRQ(EXTI0_IRQn);
@@ -80,7 +83,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 		HAL_NVIC_EnableIRQ(EXTI0_IRQn);
 		HAL_NVIC_EnableIRQ(EXTI1_IRQn);
 		HAL_NVIC_EnableIRQ(EXTI3_IRQn);
-	
 }
 
 /*
@@ -130,26 +132,33 @@ void maquina_estados (uint16_t GPIO_Pin)
 	
 }
 
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+	UNUSED(htim);
+}
+
 void salida(void)
 {
 	if(estadoP){
-		HAL_GPIO_WritePin(GPIOD,GPIO_PIN_12,1);
 		HAL_GPIO_WritePin(GPIOD,GPIO_PIN_13,0);
 		HAL_GPIO_WritePin(GPIOD,GPIO_PIN_14,0);
+		HAL_TIM_PeriodElapsedCallback(&htim2);
+		HAL_GPIO_WritePin(GPIOD,GPIO_PIN_12,1);
 	}
 	
 	if(estadoS){
-		HAL_GPIO_WritePin(GPIOD,GPIO_PIN_13,1);
 		HAL_GPIO_WritePin(GPIOD,GPIO_PIN_14,0);
 		HAL_GPIO_WritePin(GPIOD,GPIO_PIN_12,0);
+		HAL_TIM_PeriodElapsedCallback(&htim2);
+		HAL_GPIO_WritePin(GPIOD,GPIO_PIN_13,1);
 	}
 	
 	if(estadoB){
-		HAL_GPIO_WritePin(GPIOD,GPIO_PIN_14,1);
 		HAL_GPIO_WritePin(GPIOD,GPIO_PIN_13,0);
 		HAL_GPIO_WritePin(GPIOD,GPIO_PIN_12,0);
+		HAL_TIM_PeriodElapsedCallback(&htim2);
+		HAL_GPIO_WritePin(GPIOD,GPIO_PIN_14,1);
 	}
-	
 }
 
 /* USER CODE END 0 */
@@ -184,6 +193,7 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_ADC1_Init();
+  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
@@ -207,7 +217,7 @@ int main(void)
 					HAL_GPIO_EXTI_Callback(0);
 				}
 		}
-			HAL_ADC_Stop(&hadc1);
+		HAL_ADC_Stop(&hadc1);
 	
 		HAL_NVIC_DisableIRQ(EXTI0_IRQn);
 		HAL_NVIC_DisableIRQ(EXTI1_IRQn);
@@ -217,8 +227,8 @@ int main(void)
 		HAL_NVIC_EnableIRQ(EXTI1_IRQn);
 		HAL_NVIC_EnableIRQ(EXTI3_IRQn);
 		
+
   }
-  
   /* USER CODE END 3 */
 
 }
@@ -307,6 +317,38 @@ static void MX_ADC1_Init(void)
   sConfig.Rank = 1;
   sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    _Error_Handler(__FILE__, __LINE__);
+  }
+
+}
+
+/* TIM2 init function */
+static void MX_TIM2_Init(void)
+{
+
+  TIM_ClockConfigTypeDef sClockSourceConfig;
+  TIM_MasterConfigTypeDef sMasterConfig;
+
+  htim2.Instance = TIM2;
+  htim2.Init.Prescaler = 16000;
+  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim2.Init.Period = 500;
+  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
+  {
+    _Error_Handler(__FILE__, __LINE__);
+  }
+
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
+  {
+    _Error_Handler(__FILE__, __LINE__);
+  }
+
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
   {
     _Error_Handler(__FILE__, __LINE__);
   }
