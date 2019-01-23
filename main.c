@@ -10,7 +10,7 @@
   * inserted by the user or by software development tools
   * are owned by their respective copyright owners.
   *
-  * COPYRIGHT(c) 2018 STMicroelectronics
+  * COPYRIGHT(c) 2019 STMicroelectronics
   *
   * Redistribution and use in source and binary forms, with or without modification,
   * are permitted provided that the following conditions are met:
@@ -66,29 +66,31 @@ static void MX_TIM2_Init(void);
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
- int estadoP=1;
- int estadoB=0;
- int estadoS=0;
- int sensor=0;
+ uint8_t estadoP=1;
+ uint8_t estadoB=0;
+ uint8_t estadoS=0;
+ uint8_t sensor;
  
+ uint16_t boton;
+ 
+ int bandera=0;
+ int bandera2=0;
  
 void maquina_estados (uint16_t GPIO_Pin);
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-		HAL_NVIC_DisableIRQ(EXTI0_IRQn);
-		HAL_NVIC_DisableIRQ(EXTI1_IRQn);
-		HAL_NVIC_DisableIRQ(EXTI3_IRQn);
-		maquina_estados(GPIO_Pin);
-		HAL_NVIC_EnableIRQ(EXTI0_IRQn);
-		HAL_NVIC_EnableIRQ(EXTI1_IRQn);
-		HAL_NVIC_EnableIRQ(EXTI3_IRQn);
+		if(bandera==0)
+		{
+			bandera=1;
+			boton=GPIO_Pin;
+		}
 }
 
 /*
-	GPIO_PIN_0=Boton 3
-	GPIO_PIN_1=Boton 1
-	GPIO_PIN_3=Boton 2
+	GPIO_PIN_0=Boton 3--reset
+	GPIO_PIN_1=Boton 1--subir
+	GPIO_PIN_3=Boton 2--bajar
 */
 void maquina_estados (uint16_t GPIO_Pin)
 {
@@ -105,9 +107,8 @@ void maquina_estados (uint16_t GPIO_Pin)
 		}
 	}
 	
-	
-	if(estadoS){
-		if((GPIO_Pin==GPIO_PIN_0)||(sensor>=200))//Falta calibrar
+	else if(estadoS){
+		if((GPIO_Pin==GPIO_PIN_0)||(sensor>=200))
 		{
 			estadoS=0;
 			estadoP=1;
@@ -119,8 +120,8 @@ void maquina_estados (uint16_t GPIO_Pin)
 		}
 	}
 	
-	if(estadoB){
-		if((GPIO_Pin==GPIO_PIN_0)||(sensor<=50)){//Falta calibrar
+	else if(estadoB){
+		if((GPIO_Pin==GPIO_PIN_0)||(sensor<=50)){
 			estadoB=0;
 			estadoP=1;
 		}
@@ -207,22 +208,34 @@ int main(void)
 
   /* USER CODE BEGIN 3 */
 		HAL_ADC_Start(&hadc1);
-		char str[15];
-		if (HAL_ADC_PollForConversion(&hadc1,2000)==HAL_OK)
+
+		if (HAL_ADC_PollForConversion(&hadc1,5)==HAL_OK)
 		{
 				sensor=HAL_ADC_GetValue(&hadc1);
-				sprintf(str, "%d", sensor);
 				if((sensor>=200)||(sensor<=50))
 				{
-					HAL_GPIO_EXTI_Callback(0);
+						bandera2=1;
 				}
 		}
 		HAL_ADC_Stop(&hadc1);
-	
+		HAL_Delay(300);
+		
 		HAL_NVIC_DisableIRQ(EXTI0_IRQn);
 		HAL_NVIC_DisableIRQ(EXTI1_IRQn);
 		HAL_NVIC_DisableIRQ(EXTI3_IRQn);
-		salida();
+		if(bandera==1)
+		{
+			maquina_estados(boton);
+			salida();
+			bandera=0;
+		}
+		
+		if(bandera2==1)
+		{
+			maquina_estados(0);
+			salida();
+			bandera2=0;
+		}
 		HAL_NVIC_EnableIRQ(EXTI0_IRQn);
 		HAL_NVIC_EnableIRQ(EXTI1_IRQn);
 		HAL_NVIC_EnableIRQ(EXTI3_IRQn);
